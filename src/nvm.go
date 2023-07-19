@@ -346,7 +346,7 @@ func install(version string, cpuarch string) {
 
 		// Warn the user if they're attempting to install without verifying the remote SSL cert
 		if !env.verifyssl {
-			fmt.Println("\nWARNING: The remote SSL certificate will not be validated during the download process.\n")
+			fmt.Println("\nWARNING: The remote SSL certificate will not be validated during the download process.\n ")
 		}
 
 		// Download node
@@ -647,7 +647,9 @@ func use(version string, cpuarch string, reload ...bool) {
 	sym, _ := os.Lstat(env.symlink)
 	if sym != nil {
 		// _, err := runElevated(fmt.Sprintf(`"%s" cmd /C rmdir "%s"`, filepath.Join(env.root, "elevate.cmd"), filepath.Clean(env.symlink)))
-		_, err := elevatedRun("rmdir", filepath.Clean(env.symlink))
+		//_, err := elevatedRun("rmdir", filepath.Clean(env.symlink))
+		cmd := exec.Command("cmd.exe", "/c", "rmdir", filepath.Clean(env.symlink))
+		err := cmd.Run()
 		if err != nil {
 			if accessDenied(err) {
 				return
@@ -664,9 +666,11 @@ func use(version string, cpuarch string, reload ...bool) {
 	// Create new symlink
 	var ok bool
 	// ok, err = runElevated(fmt.Sprintf(`"%s" cmd /C mklink /D "%s" "%s"`, filepath.Join(env.root, "elevate.cmd"), filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version)))
-	ok, err = elevatedRun("mklink", "/D", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
-	if err != nil {
-		if strings.Contains(err.Error(), "not have sufficient privilege") || strings.Contains(strings.ToLower(err.Error()), "access is denied") {
+	// ok, err = elevatedRun("mklink", "/D", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
+	cmd := exec.Command("cmd.exe", "/c", "mklink",  "/J", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
+	errMkJunction := cmd.Run()
+	if errMkJunction != nil {
+		if strings.Contains(errMkJunction.Error(), "not have sufficient privilege") || strings.Contains(strings.ToLower(err.Error()), "access is denied") {
 			// cmd := exec.Command(filepath.Join(env.root, "elevate.cmd"), "cmd", "/C", "mklink", "/D", filepath.Clean(env.symlink), filepath.Join(env.root, "v"+version))
 			// var output bytes.Buffer
 			// var _stderr bytes.Buffer
@@ -681,7 +685,7 @@ func use(version string, cpuarch string, reload ...bool) {
 			} else {
 				ok = true
 			}
-		} else if strings.Contains(err.Error(), "file already exists") {
+		} else if strings.Contains(errMkJunction.Error(), "file already exists") {
 			ok, err = elevatedRun("rmdir", filepath.Clean(env.symlink))
 			// ok, err = runElevated(fmt.Sprintf(`"%s" cmd /C rmdir "%s"`, filepath.Join(env.root, "elevate.cmd"), filepath.Clean(env.symlink)))
 			reloadable := true
